@@ -12,52 +12,84 @@ import DeleteConfirmation from "../components/DeleteConfirmation";
 import useCustomers from "../hooks/useCustomers";
 
 function Dashboard() {
-  const [isOpen, setIsOpen] = useState(false);
-  const [activePage, setActivePage] = useState("Dashboard");
-
-  // Modal states
-  const [modalOpen, setModalOpen] = useState(false);
-  const [selectedCustomer, setSelectedCustomer] = useState(null);
-  const [deleteTarget, setDeleteTarget] = useState(null);
-
-  // Custom customer hook
   const {
     customers,
     addCustomer,
     updateCustomer,
-    deleteCustomer
+    deleteCustomer,
   } = useCustomers();
 
-  // Open Add Customer Modal
+  const [isOpen, setIsOpen] = useState(false);
+  const [activePage, setActivePage] = useState("Dashboard");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState(null);
+  const [deleteTarget, setDeleteTarget] = useState(null);
+
+  // Open add customer modal
   const handleAddClick = () => {
     setSelectedCustomer(null);
     setModalOpen(true);
   };
 
-  // Open Edit Customer Modal
+  // Open edit customer modal
   const handleEdit = (customer) => {
     setSelectedCustomer(customer);
     setModalOpen(true);
   };
 
-  // Save new or updated customer
+  // Check duplicate email before saving
   const handleSave = (customerData) => {
+    const enteredEmail = customerData.email
+      .trim()
+      .toLowerCase();
+
+    const duplicateEmail = customers.some((existing) => {
+      const existingEmail = existing.email
+        ?.trim()
+        .toLowerCase();
+
+      const isSameCustomer =
+        selectedCustomer &&
+        String(existing.id) === String(selectedCustomer.id);
+
+      return (
+        existingEmail === enteredEmail &&
+        !isSameCustomer
+      );
+    });
+
+    // Stop saving if email already exists
+    if (duplicateEmail) {
+      window.alert("This email address already exists!");
+      return false;
+    }
+
+    // Update existing customer
     if (selectedCustomer) {
-      updateCustomer(customerData);
+      updateCustomer({
+        ...customerData,
+        email: enteredEmail,
+      });
     } else {
-      addCustomer(customerData);
+      // Add new customer
+      addCustomer({
+        ...customerData,
+        email: enteredEmail,
+      });
     }
 
     setModalOpen(false);
     setSelectedCustomer(null);
+
+    return true;
   };
 
-  // Confirm Delete
+  // Delete customer
   const handleDelete = () => {
-    if (deleteTarget) {
-      deleteCustomer(deleteTarget.id);
-      setDeleteTarget(null);
-    }
+    if (!deleteTarget) return;
+
+    deleteCustomer(deleteTarget.id);
+    setDeleteTarget(null);
   };
 
   // Dashboard statistics
@@ -71,10 +103,16 @@ function Dashboard() {
     (customer) => customer.status === "Inactive"
   ).length;
 
-  return (
-    <div className="flex min-h-screen bg-slate-50">
+  const recentCustomers = [...customers]
+    .sort(
+      (a, b) =>
+        new Date(b.dateAdded).getTime() -
+        new Date(a.dateAdded).getTime()
+    )
+    .slice(0, 5);
 
-      {/* Sidebar */}
+  return (
+    <div className="flex min-h-screen bg-gray-50">
       <Sidebar
         activePage={activePage}
         setActivePage={setActivePage}
@@ -82,44 +120,35 @@ function Dashboard() {
         setIsOpen={setIsOpen}
       />
 
-      <main className="min-w-0 flex-1">
-
-        {/* Header */}
+      <div className="min-w-0 flex-1">
         <Header
           title={activePage}
           setIsOpen={setIsOpen}
         />
 
-        <div className="p-4 sm:p-6 lg:p-8">
-
-          {/* Dashboard Page */}
+        <main className="p-4 md:p-8">
           {activePage === "Dashboard" && (
             <>
-              <div className="mb-8 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-
+              <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">
-                    Dashboard Overview
-                  </h2>
-
-                  <p className="mt-2 text-sm text-slate-400">
-                    Track and manage your customer relationships.
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Dashboard
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Welcome back! Here is your customer overview.
                   </p>
                 </div>
 
                 <button
                   onClick={handleAddClick}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700"
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <Plus size={18} />
                   Add Customer
                 </button>
-
               </div>
 
-              {/* Statistics Cards */}
               <div className="mb-8 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3">
-
                 <StartCard
                   title="Total Customers"
                   value={totalCustomers}
@@ -130,51 +159,45 @@ function Dashboard() {
                 <StartCard
                   title="Active Customers"
                   value={activeCustomers}
-                  description="Currently active customers"
+                  description="Currently active"
                   type="active"
                 />
 
                 <StartCard
                   title="Inactive Customers"
                   value={inactiveCustomers}
-                  description="Currently inactive customers"
+                  description="Currently inactive"
                   type="inactive"
                 />
-
               </div>
 
-              {/* Customer Table */}
               <RecentCustomers
-                customers={customers}
+                customers={recentCustomers}
                 onEdit={handleEdit}
                 onDelete={setDeleteTarget}
               />
             </>
           )}
 
-          {/* Customers Page */}
           {activePage === "Customers" && (
             <>
-              <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
-
+              <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-xl font-bold text-slate-800">
-                    Customer Management
-                  </h2>
-
-                  <p className="mt-2 text-sm text-slate-400">
-                    Add, edit, search and manage your customers.
+                  <h1 className="text-2xl font-bold text-gray-900">
+                    Customers
+                  </h1>
+                  <p className="mt-1 text-sm text-gray-500">
+                    Manage all your customers.
                   </p>
                 </div>
 
                 <button
                   onClick={handleAddClick}
-                  className="flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-5 py-3 text-sm font-semibold text-white hover:bg-indigo-700"
+                  className="flex items-center gap-2 rounded-lg bg-indigo-600 px-4 py-2.5 text-sm font-medium text-white hover:bg-indigo-700"
                 >
                   <Plus size={18} />
                   Add Customer
                 </button>
-
               </div>
 
               <RecentCustomers
@@ -185,35 +208,31 @@ function Dashboard() {
             </>
           )}
 
-          {/* Settings Page */}
           {activePage === "Settings" && (
             <div className="rounded-xl bg-white p-8 shadow-sm">
-              <h2 className="text-xl font-bold text-slate-800">
+              <h1 className="text-2xl font-bold text-gray-900">
                 Settings
-              </h2>
-
-              <p className="mt-2 text-sm text-slate-400">
+              </h1>
+              <p className="mt-2 text-gray-500">
                 Settings page coming soon.
               </p>
             </div>
           )}
+        </main>
+      </div>
 
-        </div>
-      </main>
-
-      {/* Add / Edit Modal */}
-      {modalOpen && (
-        <CustomerModal
-          key={selectedCustomer?.id ?? "new-customer"}
-          isOpen={modalOpen}
-          customer={selectedCustomer}
-          onClose={() => {
-            setModalOpen(false);
-            setSelectedCustomer(null);
-          }}
-          onSave={handleSave}
-        />
-      )}
+      {/* Customer Add/Edit Modal */}
+      <CustomerModal
+        key={selectedCustomer?.id ?? "new-customer"}
+        isOpen={modalOpen}
+        onClose={() => {
+          setModalOpen(false);
+          setSelectedCustomer(null);
+        }}
+        onSave={handleSave}
+        customer={selectedCustomer}
+        customers={customers}
+      />
 
       {/* Delete Confirmation */}
       {deleteTarget && (
@@ -223,7 +242,6 @@ function Dashboard() {
           onConfirm={handleDelete}
         />
       )}
-
     </div>
   );
 }
